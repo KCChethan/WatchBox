@@ -1,0 +1,47 @@
+Prompt 2: Create Website Based on Architecture
+You are an expert fullstack developer. Using the exact architecture provided below,
+You are an expert software architect specializing in fullstack web applications. Based on the following requirements for a web application called "Device Monitor", design a high-level software architecture. The application monitors office chassis devices accessible via SSH using IP addresses (e.g., 10.141.1.30, 10.141.1.31, 10.141.1.32, 10.141.1.33), with shared username and password for all users. There are 20 users who currently coordinate manually via Teams, but this app will automate monitoring of SSH sessions, device states, and more.
+Key features:
+
+List all available devices by IP address.
+Users can add or remove devices, with confirmation before removal.
+Display device current state (Using, Idle, or Do Not Disturb for long-running tests), updatable by users.
+Users can request permission to use a device if it's in use by someone else.
+Show the last software version updated on each device, fetched from the device's rootfs /version file via SSH.
+Display how long each device has been turned on (uptime), fetched via SSH.
+Aesthetic, properly aligned UI where users feel attracted in 3 clicks and want to use it more.
+Fullstack application with frontend and backend connectivity.
+
+The architecture should include:
+
+Overall system components (e.g., frontend, backend, database, external integrations like SSH).
+Technology stack suggestions (e.g., React for frontend, Node.js/Express for backend, MongoDB for database, SSH libraries like ssh2 for Node.js).
+Data flow diagrams or descriptions (e.g., how frontend interacts with backend, how backend fetches data via SSH).
+Security considerations (e.g., handling shared credentials securely, user authentication if needed).
+Scalability and modularity (e.g., how to handle multiple users and real-time updates, perhaps using WebSockets for live states).
+Any necessary services or APIs (e.g., endpoints for device listing, state updates, SSH queries).
+
+Output the architecture in a structured format: Use sections for components, data models, APIs/endpoints, sequence diagrams for key flows (e.g., fetching uptime), and any assumptions or recommendations. Keep it concise yet comprehensive.
+
+
+implement the "Device Monitor" web application as a fullstack project with frontend and backend.
+The application must fully support these features:
+
+List all available devices by IP address (initially seed with 10.141.1.30, 10.141.1.31, 10.141.1.32, 10.141.1.33).
+Allow users to add or remove devices, with a confirmation dialog before removal.
+Display and allow updates to device states: Using, Idle, Do Not Disturb.
+Enable users to send requests to use a device if it's in use (e.g., via in-app notifications or messaging).
+Fetch and display the last software version from each device's rootfs /version file via SSH.
+Fetch and display device uptime via SSH.
+Create an aesthetic, responsive UI with proper alignment, intuitive navigation (users should feel engaged within 3 clicks), using modern design principles (e.g., Material UI or Bootstrap for styling).
+Ensure frontend-backend connectivity, handling SSH sessions securely with shared credentials (store them securely, e.g., in environment variables).
+
+Follow the architecture strictly: Use the specified tech stack, components, data models, APIs, and flows. Implement real-time features if mentioned (e.g., WebSockets for state updates). Handle errors gracefully (e.g., SSH connection failures).
+Output the complete code structure:
+
+Backend: Server setup, routes/endpoints, SSH integration logic, database models and connections.
+Frontend: Component files, pages (e.g., dashboard, device list), state management (e.g., Redux if applicable), UI elements.
+Any setup instructions (e.g., how to run the app, dependencies).
+Use placeholder values for SSH credentials (username/password) and assume devices are accessible.
+
+Provide the code in a zipped project format if possible, or as organized code snippets with file names. Ensure the app is functional and testable locally.4s
