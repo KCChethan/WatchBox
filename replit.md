@@ -7,6 +7,7 @@ Device Monitor is a fullstack web application designed to manage and monitor net
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+Design preferences: Colorful, creative, dark-themed UI with innovative visual elements instead of rectangular layouts.
 
 ## System Architecture
 
