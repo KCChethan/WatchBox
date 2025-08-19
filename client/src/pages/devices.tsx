@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { deviceApi, accessRequestApi } from "@/lib/api";
 import type { Device, AccessRequest } from "@shared/schema";
 
-// Creative Device Component - Hexagonal design
+// Creative Device Component - Box design with colored headers
 function CreativeDeviceBox({ device, onUseDevice, onSetDND, onRequestAccess, onRemoveDevice }: {
   device: Device;
   onUseDevice: (deviceId: string) => void;
@@ -24,35 +24,39 @@ function CreativeDeviceBox({ device, onUseDevice, onSetDND, onRequestAccess, onR
     switch (status) {
       case "using":
         return {
-          color: "from-red-500/30 to-red-600/20",
-          border: "border-red-500/50",
-          glow: "shadow-red-500/30",
+          headerColor: "from-red-500 to-red-600",
+          bodyColor: "from-red-500/10 to-red-600/5",
+          border: "border-red-500/30",
           pulse: "bg-red-500",
-          textColor: "text-red-400"
+          textColor: "text-red-400",
+          headerText: "text-white"
         };
       case "idle":
         return {
-          color: "from-emerald-500/30 to-emerald-600/20",
-          border: "border-emerald-500/50",
-          glow: "shadow-emerald-500/30",
+          headerColor: "from-emerald-500 to-emerald-600",
+          bodyColor: "from-emerald-500/10 to-emerald-600/5",
+          border: "border-emerald-500/30",
           pulse: "bg-emerald-500",
-          textColor: "text-emerald-400"
+          textColor: "text-emerald-400",
+          headerText: "text-white"
         };
       case "dnd":
         return {
-          color: "from-amber-500/30 to-amber-600/20",
-          border: "border-amber-500/50",
-          glow: "shadow-amber-500/30",
+          headerColor: "from-amber-500 to-amber-600",
+          bodyColor: "from-amber-500/10 to-amber-600/5",
+          border: "border-amber-500/30",
           pulse: "bg-amber-500",
-          textColor: "text-amber-400"
+          textColor: "text-amber-400",
+          headerText: "text-white"
         };
       default:
         return {
-          color: "from-slate-500/30 to-slate-600/20",
-          border: "border-slate-500/50",
-          glow: "shadow-slate-500/30",
+          headerColor: "from-slate-500 to-slate-600",
+          bodyColor: "from-slate-500/10 to-slate-600/5",
+          border: "border-slate-500/30",
           pulse: "bg-slate-500",
-          textColor: "text-slate-400"
+          textColor: "text-slate-400",
+          headerText: "text-white"
         };
     }
   };
@@ -61,118 +65,128 @@ function CreativeDeviceBox({ device, onUseDevice, onSetDND, onRequestAccess, onR
   const isOnline = device.isOnline === 1;
 
   return (
-    <div className={`relative group hover:scale-105 transition-all duration-300`}>
-      {/* Hexagonal Shape */}
-      <div
-        className={`relative w-64 h-48 bg-gradient-to-br ${config.color} backdrop-blur-sm border ${config.border} hover:shadow-2xl hover:${config.glow} transition-all duration-300`}
-        style={{
-          clipPath: "polygon(20% 0%, 80% 0%, 100% 50%, 80% 100%, 20% 100%, 0% 50%)",
-          filter: "drop-shadow(0 8px 32px rgba(0, 0, 0, 0.3))"
-        }}
+    <div className="relative group hover:scale-105 transition-all duration-300">
+      {/* Box Container */}
+      <div 
+        className={`relative w-72 bg-slate-800/50 backdrop-blur-sm border ${config.border} rounded-2xl overflow-hidden hover:shadow-2xl hover:shadow-${config.pulse}/20 transition-all duration-300`}
         data-testid={`device-box-${device.id}`}
       >
-        {/* Content inside hexagon */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center p-8">
-          {/* Status indicator */}
-          <div className="flex items-center justify-center mb-3">
-            <div className={`w-4 h-4 rounded-full ${config.pulse} animate-pulse shadow-lg`}></div>
-            <div className="ml-2 flex items-center space-x-1">
+        {/* Colored Header with IP Address */}
+        <div className={`bg-gradient-to-r ${config.headerColor} px-6 py-4 relative`}>
+          <div className="flex items-center justify-between">
+            <h3 className={`text-lg font-bold ${config.headerText}`} data-testid={`device-ip-${device.id}`}>
+              {device.ip}
+            </h3>
+            <div className="flex items-center space-x-2">
+              <div className={`w-3 h-3 rounded-full ${config.pulse} animate-pulse shadow-lg`}></div>
               {isOnline ? (
-                <Wifi className="w-4 h-4 text-emerald-400" />
+                <Wifi className="w-4 h-4 text-white/90" />
               ) : (
-                <WifiOff className="w-4 h-4 text-red-400" />
+                <WifiOff className="w-4 h-4 text-white/90" />
               )}
             </div>
           </div>
-
-          {/* IP Address */}
-          <h3 className="text-lg font-bold text-slate-50 mb-2" data-testid={`device-ip-${device.id}`}>
-            {device.ip}
-          </h3>
-
-          {/* Status */}
-          <div className={`text-sm font-medium ${config.textColor} mb-3`} data-testid={`device-status-${device.id}`}>
-            {device.status === "using" && "In Use"}
-            {device.status === "idle" && "Available"}
-            {device.status === "dnd" && "Do Not Disturb"}
-          </div>
-
-          {/* Device Info */}
-          <div className="text-xs text-slate-400 text-center space-y-1">
-            <div>v{device.version || "Unknown"}</div>
-            <div>{device.uptime || "N/A"}</div>
-            {device.currentUser && (
-              <div className={`${config.textColor} font-medium`}>{device.currentUser}</div>
+          
+          {/* Action buttons in header */}
+          <div className="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            {device.status === "using" && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="w-7 h-7 bg-white/20 hover:bg-white/30 text-white border-0 rounded-full p-0"
+                onClick={() => onRequestAccess(device.id)}
+                data-testid={`button-request-${device.id}`}
+              >
+                <Send className="w-3 h-3" />
+              </Button>
             )}
-          </div>
-        </div>
-
-        {/* Action buttons overlay */}
-        <div className="absolute -top-4 -right-4 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-          {device.status === "using" && (
             <Button
               size="sm"
               variant="ghost"
-              className="w-8 h-8 bg-amber-500/20 hover:bg-amber-500/40 text-amber-400 border border-amber-500/50 rounded-full"
-              onClick={() => onRequestAccess(device.id)}
-              data-testid={`button-request-${device.id}`}
+              className="w-7 h-7 bg-white/20 hover:bg-white/30 text-white border-0 rounded-full p-0"
+              onClick={() => onRemoveDevice(device.id)}
+              data-testid={`button-remove-${device.id}`}
             >
-              <Send className="w-3 h-3" />
+              <Trash2 className="w-3 h-3" />
             </Button>
-          )}
-          <Button
-            size="sm"
-            variant="ghost"
-            className="w-8 h-8 bg-red-500/20 hover:bg-red-500/40 text-red-400 border border-red-500/50 rounded-full"
-            onClick={() => onRemoveDevice(device.id)}
-            data-testid={`button-remove-${device.id}`}
-          >
-            <Trash2 className="w-3 h-3" />
-          </Button>
-        </div>
-      </div>
-
-      {/* Quick Action Bar Below */}
-      <div className="mt-4 flex justify-center space-x-2">
-        {device.status === "idle" && (
-          <>
-            <Button
-              size="sm"
-              className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/50 px-4 py-2 text-xs transition-colors"
-              onClick={() => onUseDevice(device.id)}
-              data-testid={`button-use-${device.id}`}
-            >
-              <Play className="w-3 h-3 mr-1" />
-              Use Now
-            </Button>
-            <Button
-              size="sm"
-              className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/50 px-4 py-2 text-xs transition-colors"
-              onClick={() => onSetDND(device.id)}
-              data-testid={`button-dnd-${device.id}`}
-            >
-              <Pause className="w-3 h-3 mr-1" />
-              DND
-            </Button>
-          </>
-        )}
-        {device.status === "using" && (
-          <Button
-            size="sm"
-            className="bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 border border-orange-500/50 px-4 py-2 text-xs transition-colors"
-            onClick={() => onRequestAccess(device.id)}
-            data-testid={`button-request-access-${device.id}`}
-          >
-            <Send className="w-3 h-3 mr-1" />
-            Request Access
-          </Button>
-        )}
-        {device.status === "dnd" && (
-          <div className="bg-slate-600/30 text-slate-500 border border-slate-600/50 px-4 py-2 text-xs rounded-lg flex items-center">
-            <AlertCircle className="w-3 h-3 mr-1" />
-            Long Test Running
           </div>
-        )}
+        </div>
+
+        {/* Body Content */}
+        <div className={`bg-gradient-to-br ${config.bodyColor} px-6 py-5`}>
+          {/* Status */}
+          <div className="mb-4 flex items-center justify-between">
+            <div className={`text-sm font-medium ${config.textColor}`} data-testid={`device-status-${device.id}`}>
+              {device.status === "using" && "In Use"}
+              {device.status === "idle" && "Available"}
+              {device.status === "dnd" && "Do Not Disturb"}
+            </div>
+            <div className={`text-xs px-2 py-1 rounded-full ${config.bodyColor} border ${config.border}`}>
+              {isOnline ? "Online" : "Offline"}
+            </div>
+          </div>
+
+          {/* Device Info */}
+          <div className="text-sm text-slate-300 space-y-2 mb-5">
+            <div className="flex justify-between">
+              <span className="text-slate-400">Version:</span>
+              <span>v{device.version || "Unknown"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400">Uptime:</span>
+              <span>{device.uptime || "N/A"}</span>
+            </div>
+            {device.currentUser && (
+              <div className="flex justify-between">
+                <span className="text-slate-400">User:</span>
+                <span className={`${config.textColor} font-medium`}>{device.currentUser}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex space-x-2">
+            {device.status === "idle" && (
+              <>
+                <Button
+                  size="sm"
+                  className="flex-1 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/50 py-2 text-xs transition-colors"
+                  onClick={() => onUseDevice(device.id)}
+                  data-testid={`button-use-${device.id}`}
+                >
+                  <Play className="w-3 h-3 mr-1" />
+                  Use Now
+                </Button>
+                <Button
+                  size="sm"
+                  className="flex-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/50 py-2 text-xs transition-colors"
+                  onClick={() => onSetDND(device.id)}
+                  data-testid={`button-dnd-${device.id}`}
+                >
+                  <Pause className="w-3 h-3 mr-1" />
+                  DND
+                </Button>
+              </>
+            )}
+            {device.status === "using" && (
+              <Button
+                size="sm"
+                className="flex-1 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 border border-orange-500/50 py-2 text-xs transition-colors"
+                onClick={() => onRequestAccess(device.id)}
+                data-testid={`button-request-access-${device.id}`}
+              >
+                <Send className="w-3 h-3 mr-1" />
+                Request Access
+              </Button>
+            )}
+            {device.status === "dnd" && (
+              <div className="flex-1 bg-slate-600/30 text-slate-500 border border-slate-600/50 py-2 text-xs rounded-lg flex items-center justify-center">
+                <AlertCircle className="w-3 h-3 mr-1" />
+                Long Test Running
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -441,7 +455,7 @@ export default function Devices() {
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 place-items-center" data-testid="device-grid">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6" data-testid="device-grid">
             {devices.map((device) => (
               <CreativeDeviceBox
                 key={device.id}
