@@ -2,8 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
-import { insertDeviceSchema, updateDeviceStatusSchema, insertAccessRequestSchema } from "@shared/schema";
-import { MockSSHService } from "./services/ssh";
+import { insertDeviceSchema, updateDeviceStatusSchema, insertAccessRequestSchema, accessRequestStatusEnum } from "@shared/schema";
+import { SSHService, MockSSHService } from "./services/ssh";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
@@ -31,13 +31,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const device = await storage.createDevice(deviceData);
       
       // Fetch device info via SSH
-      const sshResult = await MockSSHService.fetchDeviceInfo(deviceData.ip);
+      const sshResult = await SSHService.fetchDeviceInfo(deviceData.ip).catch(() => MockSSHService.fetchDeviceInfo(deviceData.ip));
       if (sshResult.success) {
         await storage.updateDevice(device.id, {
-          version: sshResult.data.version,
-          uptime: sshResult.data.uptime,
+          version: sshResult.data.version ?? null,
+          kernel: sshResult.data.kernel,
+          build: sshResult.data.build,
+          commit: sshResult.data.commit,
+          description: sshResult.data.description,
+          timestamp: sshResult.data.timestamp,
+          uptime: sshResult.data.uptime ?? null,
           isOnline: sshResult.data.isOnline
         });
+      } else {
+        await storage.updateDevice(device.id, { isOnline: 0, version: null, uptime: null });
       }
 
       const updatedDevice = await storage.getDevice(device.id);
@@ -56,6 +63,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const statusData = updateDeviceStatusSchema.parse(req.body);
       
+      // Ensure currentUser is present for statuses that require a user
+      if ((statusData.status === "using" || statusData.status === "dnd") && !statusData.currentUser) {
+        return res.status(400).json({ message: "currentUser is required when setting status to using or dnd" });
+      }
+
       const device = await storage.updateDeviceStatus(id, statusData);
       if (!device) {
         return res.status(404).json({ message: "Device not found" });
@@ -116,6 +128,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const { status } = req.body;
+      const parsed = accessRequestStatusEnum.safeParse(status);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid status" });
+      }
       
       const request = await storage.updateAccessRequest(id, { status });
       if (!request) {
@@ -124,10 +140,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // If approved, update device status
       if (status === "approved") {
-        await storage.updateDeviceStatus(request.deviceId, {
-          status: "using",
-          currentUser: request.requesterName
-        });
+        const device = await storage.getDevice(request.deviceId);
+        if (!device) {
+          return res.status(404).json({ message: "Device not found for request" });
+        }
+        if (device.status === "using" && device.currentUser && device.currentUser !== request.requesterName) {
+          return res.status(409).json({ message: `Device is already in use by ${device.currentUser}` });
+        }
+        await storage.updateDeviceStatus(request.deviceId, { status: "using", currentUser: request.requesterName });
       }
 
       // Broadcast to WebSocket clients
@@ -149,11 +169,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Device not found" });
       }
 
-      const sshResult = await MockSSHService.fetchDeviceInfo(device.ip);
+      const sshResult = await SSHService.fetchDeviceInfo(device.ip).catch(() => MockSSHService.fetchDeviceInfo(device.ip));
       if (sshResult.success) {
         const updatedDevice = await storage.updateDevice(id, {
-          version: sshResult.data.version,
-          uptime: sshResult.data.uptime,
+          version: sshResult.data.version ?? null,
+          kernel: sshResult.data.kernel,
+          build: sshResult.data.build,
+          commit: sshResult.data.commit,
+          description: sshResult.data.description,
+          timestamp: sshResult.data.timestamp,
+          uptime: sshResult.data.uptime ?? null,
           isOnline: sshResult.data.isOnline
         });
 
@@ -162,10 +187,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         res.json(updatedDevice);
       } else {
+        const updatedDevice = await storage.updateDevice(id, { isOnline: 0, version: null, uptime: null });
+        broadcastToClients('device_updated', updatedDevice);
         res.status(500).json({ message: sshResult.error || "Failed to fetch device info" });
       }
     } catch (error) {
       res.status(500).json({ message: "Failed to refresh device info" });
+    }
+  });
+
+  // SSH Session routes
+  app.post("/api/ssh/sessions", async (req, res) => {
+    try {
+      const { deviceId, ip } = req.body;
+      
+      if (!deviceId || !ip) {
+        return res.status(400).json({ message: "deviceId and ip are required" });
+      }
+
+      const session = await SSHService.createSession(deviceId, ip);
+      if (session.success) {
+        // Broadcast to WebSocket clients
+        broadcastToClients('ssh_session_created', session.data);
+        res.json(session.data);
+      } else {
+        res.status(500).json({ message: session.error || "Failed to create SSH session" });
+      }
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to create SSH session" });
+    }
+  });
+
+  app.post("/api/ssh/sessions/:sessionId/execute", async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const { command } = req.body;
+      
+      if (!command) {
+        return res.status(400).json({ message: "command is required" });
+      }
+
+      const result = await SSHService.executeCommand(sessionId, command);
+      if (result.success) {
+        // Broadcast to WebSocket clients
+        broadcastToClients('ssh_command_executed', result.data);
+        res.json(result.data);
+      } else {
+        res.status(500).json({ message: result.error || "Failed to execute command" });
+      }
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to execute command" });
+    }
+  });
+
+  app.get("/api/ssh/sessions", async (req, res) => {
+    try {
+      const sessions = SSHService.getActiveSessions();
+      res.json(sessions);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch SSH sessions" });
+    }
+  });
+
+  app.delete("/api/ssh/sessions/:sessionId", async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const result = await SSHService.closeSession(sessionId);
+      
+      if (result.success) {
+        // Broadcast to WebSocket clients
+        broadcastToClients('ssh_session_closed', { sessionId });
+        res.json({ message: "Session closed successfully" });
+      } else {
+        res.status(500).json({ message: result.error || "Failed to close session" });
+      }
+    } catch (error) {
+      res.status(500).json({ message: "Failed to close SSH session" });
     }
   });
 
@@ -198,15 +295,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const devices = await storage.getDevices();
       for (const device of devices) {
-        if (device.isOnline) {
-          const sshResult = await MockSSHService.fetchDeviceInfo(device.ip);
-          if (sshResult.success) {
-            await storage.updateDevice(device.id, {
-              version: sshResult.data.version,
-              uptime: sshResult.data.uptime,
-              isOnline: sshResult.data.isOnline
-            });
-          }
+        const sshResult = await SSHService.fetchDeviceInfo(device.ip).catch(() => MockSSHService.fetchDeviceInfo(device.ip));
+        if (sshResult.success) {
+          await storage.updateDevice(device.id, {
+            version: sshResult.data.version ?? null,
+            kernel: sshResult.data.kernel,
+            build: sshResult.data.build,
+            commit: sshResult.data.commit,
+            description: sshResult.data.description,
+            timestamp: sshResult.data.timestamp,
+            uptime: sshResult.data.uptime ?? null,
+            isOnline: sshResult.data.isOnline
+          });
+        } else {
+          await storage.updateDevice(device.id, { isOnline: 0, version: null, uptime: null });
         }
       }
       

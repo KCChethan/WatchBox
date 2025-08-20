@@ -1,6 +1,8 @@
-import { Server, Play, Send, Trash2 } from "lucide-react";
+import { Server, Play, Send, Trash2, Terminal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Device } from "@shared/schema";
+import { useState } from "react";
+import { SSHSessionModal } from "./ssh-session-modal";
 
 interface DeviceCardProps {
   device: Device;
@@ -69,6 +71,9 @@ export function DeviceCard({
         return "text-slate-400";
     }
   };
+
+  // Add state for SSH modal
+  const [showSSHModal, setShowSSHModal] = useState(false);
 
   return (
     <div className="bg-slate-800 rounded-xl border border-slate-700 p-4 hover:border-slate-600 transition-all duration-300 animate-[slide-in_0.3s_ease-out]" data-testid={`device-card-${device.id}`}>
@@ -179,7 +184,26 @@ export function DeviceCard({
             Long Test Running
           </Button>
         )}
+        <Button
+          size="sm"
+          variant="ghost"
+          className="w-7 h-7 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border-0 rounded-full p-0"
+          onClick={() => setShowSSHModal(true)}
+          title="Open SSH Session"
+        >
+          <Terminal className="w-4 h-4" />
+        </Button>
       </div>
+
+      {/* SSH Modal */}
+      {showSSHModal && (
+        <SSHSessionModal
+          deviceId={device.id}
+          deviceIp={device.ip}
+          isOpen={showSSHModal}
+          onClose={() => setShowSSHModal(false)}
+        />
+      )}
     </div>
   );
 }

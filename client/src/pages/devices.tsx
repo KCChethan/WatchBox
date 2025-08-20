@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Send, Play, Pause, AlertCircle, Wifi, WifiOff } from "lucide-react";
+import { Plus, Trash2, Send, Play, Pause, AlertCircle, Wifi, WifiOff, RefreshCcw } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { AddDeviceModal } from "@/components/add-device-modal";
 import { ConfirmationModal } from "@/components/confirmation-modal";
@@ -13,12 +13,13 @@ import { deviceApi, accessRequestApi } from "@/lib/api";
 import type { Device, AccessRequest } from "@shared/schema";
 
 // Creative Device Component - Box design with colored headers
-function CreativeDeviceBox({ device, onUseDevice, onSetDND, onRequestAccess, onRemoveDevice }: {
+function CreativeDeviceBox({ device, onUseDevice, onSetDND, onRequestAccess, onRemoveDevice, onRefreshDevice }: {
   device: Device;
   onUseDevice: (deviceId: string) => void;
   onSetDND: (deviceId: string) => void;
   onRequestAccess: (deviceId: string) => void;
   onRemoveDevice: (deviceId: string) => void;
+  onRefreshDevice: (deviceId: string) => void;
 }) {
   const getStatusConfig = (status: string) => {
     switch (status) {
@@ -89,6 +90,16 @@ function CreativeDeviceBox({ device, onUseDevice, onSetDND, onRequestAccess, onR
           
           {/* Action buttons in header */}
           <div className="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="w-7 h-7 bg-white/20 hover:bg-white/30 text-white border-0 rounded-full p-0"
+              onClick={() => onRefreshDevice(device.id)}
+              data-testid={`button-refresh-${device.id}`}
+              title="Refresh device info"
+            >
+              <RefreshCcw className="w-3 h-3" />
+            </Button>
             {device.status === "using" && (
               <Button
                 size="sm"
@@ -130,11 +141,11 @@ function CreativeDeviceBox({ device, onUseDevice, onSetDND, onRequestAccess, onR
           <div className="text-sm text-slate-300 space-y-2 mb-5">
             <div className="flex justify-between">
               <span className="text-slate-400">Version:</span>
-              <span>v{device.version || "Unknown"}</span>
+              <span>{device.version ?? '-'}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-400">Uptime:</span>
-              <span>{device.uptime || "N/A"}</span>
+              <span>{device.uptime ?? '-'}</span>
             </div>
             {device.currentUser && (
               <div className="flex justify-between">
@@ -348,6 +359,16 @@ export default function Devices() {
       });
     }
   };
+  const handleRefreshDevice = async (deviceId: string) => {
+    try {
+      await deviceApi.refresh(deviceId);
+      queryClient.invalidateQueries({ queryKey: ["/api/devices"] });
+      toast({ title: "Refreshed", description: "Device info updated" });
+    } catch (e: any) {
+      toast({ title: "Refresh failed", description: e?.message || "Unable to refresh device", variant: "destructive" });
+    }
+  };
+
 
   const handleSetDND = (deviceId: string) => {
     const username = prompt("Enter your username:");
@@ -464,6 +485,7 @@ export default function Devices() {
                 onSetDND={handleSetDND}
                 onRequestAccess={handleRequestAccess}
                 onRemoveDevice={handleRemoveDevice}
+                onRefreshDevice={handleRefreshDevice}
               />
             ))}
           </div>

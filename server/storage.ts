@@ -45,9 +45,9 @@ export class MemStorage implements IStorage {
         await this.updateDevice(device.id, {
           status: deviceData.status,
           currentUser: deviceData.currentUser,
-          version: "v2.4.1",
-          uptime: "2d 8h",
-          isOnline: 1,
+          version: null,
+          uptime: null,
+          isOnline: 0,
         });
       }
     }
@@ -74,7 +74,7 @@ export class MemStorage implements IStorage {
       version: null,
       uptime: null,
       currentUser: null,
-      isOnline: 1,
+      isOnline: 0,
       lastUpdated: new Date(),
     };
     this.devices.set(id, device);

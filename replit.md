@@ -41,7 +41,7 @@ Design preferences: Colorful, creative, dark-themed UI with innovative visual el
 - No explicit user authentication system in current implementation (designed for internal network use)
 
 ### External Service Integrations
-- **SSH Integration**: Mock SSH service for fetching device information (version, uptime, connectivity)
+- **SSH Integration**: SSH service (ssh2) for fetching device information (version, uptime, connectivity). Uses `SSH_USERNAME` and `SSH_PASSWORD` env vars.
 - **Real-time Communication**: WebSocket server for broadcasting device status changes
 - **Development Tools**: Replit integration for development environment
 
@@ -100,8 +100,24 @@ Design preferences: Colorful, creative, dark-themed UI with innovative visual el
 - **connect-pg-simple**: PostgreSQL session store
 
 ### SSH Integration
-- Mock SSH service implementation (production would use ssh2 library)
+- ssh2-based SSH service to fetch `/version` and uptime; falls back to a mock in development if SSH is unavailable.
 
 ### Development Environment
 - **Replit**: Cloud development environment integration
 - **Runtime Error Overlay**: Development debugging tools
+
+## Running locally
+
+1. Install dependencies: `npm install`
+2. Create a `.env` file with values:
+   - `PORT=5000`
+   - `SSH_USERNAME=admin`
+   - `SSH_PASSWORD=yourpassword`
+   - `SSH_TIMEOUT_MS=5000`
+   - `DATABASE_URL=postgres://user:pass@host:5432/dbname` (optional)
+3. Start dev server: `npm run dev`
+4. Open the printed URL; UI and API are served together, WebSocket at `/ws`.
+
+Production preview:
+- `npm run build`
+- `npm start`
