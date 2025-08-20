@@ -147,6 +147,33 @@ function CreativeDeviceBox({ device, onUseDevice, onSetDND, onRequestAccess, onR
               <span className="text-slate-400">Uptime:</span>
               <span>{device.uptime ?? '-'}</span>
             </div>
+            
+            {/* Description Field */}
+            {device.description && (
+              <div className="flex justify-between items-start">
+                <span className="text-slate-400">Image Info:</span>
+                <span className="max-w-[180px] two-line-ellipsis text-xs text-right" title={device.description}>
+                  {device.description}
+                </span>
+              </div>
+            )}
+            
+            {/* Last Updated Field */}
+            <div className="flex justify-between">
+              <span className="text-slate-400">Updated:</span>
+              <span className="text-xs">
+                {device.lastUpdated
+                  ? new Date(device.lastUpdated).toLocaleString(undefined, {
+                      day: "numeric",
+                      month: "numeric",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  : "Unknown"}
+              </span>
+            </div>
+            
             {device.currentUser && (
               <div className="flex justify-between">
                 <span className="text-slate-400">User:</span>

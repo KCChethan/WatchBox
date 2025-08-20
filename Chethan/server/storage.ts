@@ -32,19 +32,42 @@ export class MemStorage implements IStorage {
 
   private async initializeDefaultDevices() {
     const defaultDevices = [
-      { ip: "10.141.1.30", status: "using", currentUser: "john.doe" },
-      { ip: "10.141.1.31", status: "idle", currentUser: null },
-      { ip: "10.141.1.32", status: "dnd", currentUser: "jane.smith" },
-      { ip: "10.141.1.33", status: "idle", currentUser: null },
+      { 
+        ip: "10.141.1.30", 
+        status: "using", 
+        currentUser: "john.doe",
+        description: "heads/SB2-7263-port-slate-ts-generation-tool-from-gen1-to-gen2-0-g19992c3729-dirty"
+      },
+      { 
+        ip: "10.141.1.31", 
+        status: "idle", 
+        currentUser: null,
+        description: "heads/master-0-g7e485ba597-dirty"
+      },
+      { 
+        ip: "10.141.1.32", 
+        status: "dnd", 
+        currentUser: "jane.smith",
+        description: "heads/master-1-g8f596cb6a814-dirty"
+      },
+      { 
+        ip: "10.141.1.33", 
+        status: "idle", 
+        currentUser: null,
+        description: "heads/master-2-g9g607dc7b925-dirty"
+      },
     ];
 
     for (const deviceData of defaultDevices) {
-      await this.createDevice({ ip: deviceData.ip });
+      await this.createDevice({ 
+        ip: deviceData.ip
+      });
       const device = await this.getDeviceByIp(deviceData.ip);
       if (device) {
         await this.updateDevice(device.id, {
           status: deviceData.status,
           currentUser: deviceData.currentUser,
+          description: deviceData.description,
           version: null,
           uptime: null,
           isOnline: 0,
@@ -72,6 +95,11 @@ export class MemStorage implements IStorage {
       id,
       status: "idle",
       version: null,
+      kernel: null,
+      build: null,
+      commit: null,
+      description: null,
+      timestamp: null,
       uptime: null,
       currentUser: null,
       isOnline: 0,
@@ -112,6 +140,7 @@ export class MemStorage implements IStorage {
       ...insertRequest,
       id,
       status: "pending",
+      message: insertRequest.message || null,
       createdAt: new Date(),
     };
     this.accessRequests.set(id, request);
