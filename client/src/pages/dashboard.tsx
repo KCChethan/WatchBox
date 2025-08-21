@@ -3,9 +3,11 @@ import { Server, Monitor, Wifi, WifiOff, User, Activity, TrendingUp, Clock } fro
 import { Header } from "@/components/layout/header";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { deviceApi } from "@/lib/api";
+import AuthService from "@/lib/auth";
 import { Link } from "wouter";
 
 export default function Dashboard() {
+  const currentUser = AuthService.getUser()?.username ?? null;
   // Fetch devices
   const { data: devices = [], isLoading } = useQuery({
     queryKey: ["/api/devices"],
@@ -36,7 +38,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-slate-50 font-inter antialiased">
-      <Header deviceStats={deviceStats} />
+      <Header deviceStats={deviceStats} currentUser={currentUser} onLogout={() => { AuthService.logout(); window.location.reload(); }} />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Welcome Section */}

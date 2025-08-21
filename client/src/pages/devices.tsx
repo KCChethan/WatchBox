@@ -253,7 +253,16 @@ function CreativeDeviceBox({ device, currentUser, onSetDND, onRequestAccess, onR
           <div className="mb-6 flex items-center justify-between">
             <div className={`text-base font-semibold ${config.textColor}`} data-testid={`device-status-${device.id}`}>
               {device.status === "using" && "In Use"}
-              {device.status === "idle" && (device.usageDuration ? `Will use for next ${device.usageDuration}` : "Available")}
+              {device.status === "idle" && (() => {
+                if (device.usageStartTime && device.usageDuration) {
+                  const [h, m] = device.usageDuration.split(":");
+                  const plannedMs = (parseInt(h || '0', 10) * 60 + parseInt(m || '0', 10)) * 60 * 1000;
+                  const startMs = new Date(device.usageStartTime).getTime();
+                  const isFree = Date.now() - startMs >= plannedMs;
+                  return isFree ? "Available" : "Not Free";
+                }
+                return "Available";
+              })()}
               {device.status === "dnd" && "Do Not Disturb"}
             </div>
             <div className={`text-sm px-3 py-1.5 rounded-full ${config.bodyColor} border ${config.border} font-medium`}>
@@ -296,18 +305,20 @@ function CreativeDeviceBox({ device, currentUser, onSetDND, onRequestAccess, onR
           </div>
 
           {/* SSH Connections Button */}
-          <div className="mt-3">
-            <Button
-              size="sm"
-              variant="outline"
-              className="w-full bg-slate-700/30 hover:bg-slate-700/50 text-slate-300 border border-slate-600/50 py-2 text-xs transition-colors"
-              onClick={() => onViewSSH(device.id)}
-              data-testid={`button-view-ssh-${device.id}`}
-            >
-              <Terminal className="w-3 h-3 mr-1" />
-              View Recent SSH
-            </Button>
-          </div>
+          {isOnline && (
+            <div className="mt-3">
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full bg-slate-700/30 hover:bg-slate-700/50 text-slate-300 border border-slate-600/50 py-2 text-xs transition-colors"
+                onClick={() => onViewSSH(device.id)}
+                data-testid={`button-view-ssh-${device.id}`}
+              >
+                <Terminal className="w-3 h-3 mr-1" />
+                View Recent SSH
+              </Button>
+            </div>
+          )}
 
 
         </div>
@@ -333,6 +344,21 @@ export default function Devices() {
       // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname);
     }
+  }, []);
+
+  // Restore auth state from localStorage on mount and keep in sync
+  useEffect(() => {
+    const storedUser = AuthService.getUser();
+    setCurrentUser(storedUser?.username ?? null);
+
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'device_monitor_user' || e.key === 'device_monitor_token') {
+        const user = AuthService.getUser();
+        setCurrentUser(user?.username ?? null);
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
   }, []);
   const [confirmationModal, setConfirmationModal] = useState<{
     isOpen: boolean;

@@ -25,9 +25,12 @@ export class MemStorage implements IStorage {
   constructor() {
     this.devices = new Map();
     this.accessRequests = new Map();
-    
-    // Initialize with default devices
-    this.initializeDefaultDevices();
+
+    // Do not seed default devices by default. Enable only if explicitly requested.
+    const shouldSeed = (process.env.SEED_DEVICES || "false").toLowerCase() === "true";
+    if (shouldSeed) {
+      this.initializeDefaultDevices();
+    }
   }
 
   private async initializeDefaultDevices() {

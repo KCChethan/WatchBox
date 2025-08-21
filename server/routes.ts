@@ -5,6 +5,8 @@ import { storage } from "./storage";
 import { insertDeviceSchema, updateDeviceStatusSchema, insertAccessRequestSchema, accessRequestStatusEnum } from "@shared/schema";
 import { SSHService, MockSSHService } from "./services/ssh";
 
+const USE_MOCK_FALLBACK = (process.env.SSH_USE_MOCK_FALLBACK || 'false').toLowerCase() === 'true';
+
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
 
@@ -30,8 +32,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const device = await storage.createDevice(deviceData);
       
-      // Fetch device info via SSH
-      const sshResult = await SSHService.fetchDeviceInfo(deviceData.ip).catch(() => MockSSHService.fetchDeviceInfo(deviceData.ip));
+      // Fetch device info via SSH with safe fallback to mock
+      let sshResult = await SSHService.fetchDeviceInfo(deviceData.ip);
+      if (!sshResult.success && USE_MOCK_FALLBACK) {
+        sshResult = await MockSSHService.fetchDeviceInfo(deviceData.ip);
+      }
       if (sshResult.success) {
         await storage.updateDevice(device.id, {
           version: sshResult.data.version ?? null,
@@ -41,7 +46,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           description: sshResult.data.description,
           timestamp: sshResult.data.timestamp,
           uptime: sshResult.data.uptime ?? null,
-          isOnline: sshResult.data.isOnline
+          isOnline: sshResult.data.isOnline,
+          // initialize usage timer only if duration provided by user
+          usageStartTime: deviceData.usageDuration ? new Date() : null,
         });
       } else {
         await storage.updateDevice(device.id, { isOnline: 0, version: null, uptime: null });
@@ -169,7 +176,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Device not found" });
       }
 
-      const sshResult = await SSHService.fetchDeviceInfo(device.ip).catch(() => MockSSHService.fetchDeviceInfo(device.ip));
+      let sshResult = await SSHService.fetchDeviceInfo(device.ip);
+      if (!sshResult.success && USE_MOCK_FALLBACK) {
+        sshResult = await MockSSHService.fetchDeviceInfo(device.ip);
+      }
       if (sshResult.success) {
         const updatedDevice = await storage.updateDevice(id, {
           version: sshResult.data.version ?? null,
@@ -295,7 +305,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const devices = await storage.getDevices();
       for (const device of devices) {
-        const sshResult = await SSHService.fetchDeviceInfo(device.ip).catch(() => MockSSHService.fetchDeviceInfo(device.ip));
+        let sshResult = await SSHService.fetchDeviceInfo(device.ip);
+        if (!sshResult.success && USE_MOCK_FALLBACK) {
+          sshResult = await MockSSHService.fetchDeviceInfo(device.ip);
+        }
         if (sshResult.success) {
           await storage.updateDevice(device.id, {
             version: sshResult.data.version ?? null,

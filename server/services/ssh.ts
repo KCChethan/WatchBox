@@ -27,8 +27,10 @@ export interface SSHCommand {
 }
 
 export class SSHService {
-  static get SSH_USERNAME() { return process.env.SSH_USERNAME || "admin"; }
-  static get SSH_PASSWORD() { return process.env.SSH_PASSWORD || "password"; }
+  static get SSH_USERNAME() { return process.env.SSH_USERNAME || "root"; }
+  static get SSH_PASSWORD() { return process.env.SSH_PASSWORD || ""; }
+  static get SSH_PRIVATE_KEY() { return process.env.SSH_PRIVATE_KEY ? Buffer.from(process.env.SSH_PRIVATE_KEY, 'base64').toString('utf-8') : undefined; }
+  static get SSH_PRIVATE_KEY_PATH() { return process.env.SSH_PRIVATE_KEY_PATH; }
   static get SSH_TIMEOUT_MS() { return Number(process.env.SSH_TIMEOUT_MS || 5000); }
   static get SSH_PORT() { return Number(process.env.SSH_PORT || 22); }
   
@@ -84,7 +86,8 @@ export class SSHService {
           host: ip,
           port: this.SSH_PORT,
           username: this.SSH_USERNAME,
-          password: this.SSH_PASSWORD,
+          password: this.SSH_PASSWORD || undefined,
+          privateKey: this.SSH_PRIVATE_KEY_PATH ? require('fs').readFileSync(this.SSH_PRIVATE_KEY_PATH) : this.SSH_PRIVATE_KEY,
           readyTimeout: this.SSH_TIMEOUT_MS,
           tryKeyboard: true,
         });
@@ -96,7 +99,7 @@ export class SSHService {
       // Read version from /version and uptime from /proc/uptime if available
       const [versionRes, uptimeRes] = await Promise.all([
         this.execCommand(ip, "cat /version || echo '{}'"),
-        this.execCommand(ip, "cat /proc/uptime || uptime -p || echo 0 0"),
+        this.execCommand(ip, "uptime || echo 'up 0 min'"),
       ]);
 
       // Parse version - handle both JSON and plain text formats
@@ -124,18 +127,38 @@ export class SSHService {
         version = versionRes.stdout.split(/\r?\n/)[0]?.trim() || null;
       }
 
-      // Parse uptime
+      // Parse uptime from `uptime` output (e.g., " 14:39:15 up  3:22,  load average: ...")
       let uptime: string | null = null;
       const uptimeLine = uptimeRes.stdout.split(/\r?\n/)[0]?.trim() || "";
-      if (/^\d+\.?\d*\s+\d+\.?\d*/.test(uptimeLine)) {
-        // /proc/uptime format: "12345.67 89012.34" -> convert seconds to "Xd Yh"
-        const seconds = Math.floor(parseFloat(uptimeLine.split(" ")[0]));
-        const days = Math.floor(seconds / 86400);
-        const hours = Math.floor((seconds % 86400) / 3600);
-        const minutes = Math.floor((seconds % 3600) / 60);
-        uptime = days > 0 ? `${days}d ${hours}h` : `${hours}h ${minutes}m`;
-      } else if (uptimeLine) {
-        uptime = uptimeLine;
+      // Extract the token after " up " and before the next comma
+      const upMatch = uptimeLine.match(/\bup\s+([^,]+)/i);
+      if (upMatch && upMatch[1]) {
+        const token = upMatch[1].trim();
+        // Normalize formats like "3:22" -> "3h 22m", "3 days" -> "3d"
+        if (/^\d+:\d+$/.test(token)) {
+          const [h, m] = token.split(":");
+          const hours = parseInt(h, 10);
+          const minutes = parseInt(m, 10);
+          uptime = `${hours}h ${minutes}m`;
+        } else if (/day/.test(token)) {
+          const days = parseInt(token, 10);
+          // Also check if hours may follow (e.g., "2 days, 3:10")
+          const hoursMatch = uptimeLine.match(/\bup\s+\d+\s+days?,\s+(\d+):(\d+)/i);
+          if (hoursMatch) {
+            const hours = parseInt(hoursMatch[1], 10);
+            uptime = `${days}d ${hours}h`;
+          } else {
+            uptime = `${days}d`;
+          }
+        } else if (/min/.test(token)) {
+          const minutes = parseInt(token, 10);
+          uptime = `${minutes}m`;
+        } else if (/\d+\s+hrs?/.test(token)) {
+          const hours = parseInt(token, 10);
+          uptime = `${hours}h`;
+        } else {
+          uptime = token;
+        }
       }
 
       return { 
@@ -195,7 +218,8 @@ export class SSHService {
           host: ip,
           port: this.SSH_PORT,
           username: this.SSH_USERNAME,
-          password: this.SSH_PASSWORD,
+          password: this.SSH_PASSWORD || undefined,
+          privateKey: this.SSH_PRIVATE_KEY_PATH ? require('fs').readFileSync(this.SSH_PRIVATE_KEY_PATH) : this.SSH_PRIVATE_KEY,
           readyTimeout: this.SSH_TIMEOUT_MS,
           tryKeyboard: true,
         });

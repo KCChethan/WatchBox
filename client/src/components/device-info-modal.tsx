@@ -34,6 +34,15 @@ export function DeviceInfoModal({ isOpen, onClose, device }: DeviceInfoModalProp
     return () => clearInterval(interval);
   }, [isOpen, device?.usageStartTime]);
 
+  // Determine if device is free based on elapsed vs planned duration
+  const isFreeByTimer = (() => {
+    if (!device?.usageStartTime || !device?.usageDuration) return true;
+    const startTime = new Date(device.usageStartTime).getTime();
+    const [h, m] = device.usageDuration.split(":");
+    const plannedMs = (parseInt(h || '0', 10) * 60 + parseInt(m || '0', 10)) * 60 * 1000;
+    return Date.now() - startTime >= plannedMs;
+  })();
+
   if (!isOpen || !device) return null;
 
   const formatDate = (dateString: string | null) => {
@@ -150,7 +159,7 @@ export function DeviceInfoModal({ isOpen, onClose, device }: DeviceInfoModalProp
                       
                       const remainingHours = Math.floor(remaining / 60);
                       const remainingMinutes = remaining % 60;
-                      return `${remainingHours.toString().padStart(2, '0')}:${remainingMinutes.toString().padStart(2, '0')}`;
+                      return `${remainingHours.toString().padStart(2, '0')}h:${remainingMinutes.toString().padStart(2, '0')}m`;
                     })()}
                   </span>
                 </div>
@@ -181,10 +190,10 @@ export function DeviceInfoModal({ isOpen, onClose, device }: DeviceInfoModalProp
                 <span className={`font-medium ${
                   device.status === 'using' ? 'text-red-400' :
                   device.status === 'dnd' ? 'text-orange-400' :
-                  'text-green-400'
+                  (!isFreeByTimer ? 'text-yellow-400' : 'text-green-400')
                 }`}>
                   {device.status === "using" && "In Use"}
-                  {device.status === "idle" && "Available"}
+                  {device.status === "idle" && (!isFreeByTimer ? "Not Free" : "Available")}
                   {device.status === "dnd" && "Do Not Disturb"}
                 </span>
               </div>
