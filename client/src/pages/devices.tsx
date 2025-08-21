@@ -1,25 +1,134 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Send, Play, Pause, AlertCircle, Wifi, WifiOff, RefreshCcw, ExternalLink } from "lucide-react";
+import { Plus, Trash2, Send, Play, Pause, AlertCircle, Wifi, WifiOff, RefreshCcw, ExternalLink, Terminal, User, Info } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { AddDeviceModal } from "@/components/add-device-modal";
 import { ConfirmationModal } from "@/components/confirmation-modal";
 import { RequestAccessModal } from "@/components/request-access-modal";
 import { NotificationToast } from "@/components/notification-toast";
+import { AuthModal } from "@/components/auth-modal";
+import { DeviceInfoModal } from "@/components/device-info-modal";
 import { Button } from "@/components/ui/button";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useToast } from "@/hooks/use-toast";
 import { deviceApi, accessRequestApi } from "@/lib/api";
 import type { Device, AccessRequest } from "@shared/schema";
+import AuthService from "@/lib/auth";
+
+// SSH Connections Modal Component
+function SSHConnectionsModal({ isOpen, onClose, device }: {
+  isOpen: boolean;
+  onClose: () => void;
+  device: Device | null;
+}) {
+  if (!isOpen || !device) return null;
+
+  // Device-specific SSH connections data - in real implementation this would come from API
+  const getDeviceSSHConnections = (deviceIP: string) => {
+    // Mock data - each device has its own SSH connection history
+    const deviceSSHData: { [key: string]: Array<{ timestamp: string; ip: string }> } = {
+      "10.141.1.30": [
+        { timestamp: "Aug 01 17:57:27", ip: "10.86.40.90:59385" },
+        { timestamp: "Aug 01 15:57:08", ip: "10.86.40.80:55191" },
+        { timestamp: "Aug 01 13:59:53", ip: "10.86.40.80:50638" },
+        { timestamp: "Aug 01 09:59:46", ip: "10.86.40.90:53922" },
+        { timestamp: "Aug 01 07:56:01", ip: "10.86.40.80:50638" },
+      ],
+      "10.141.1.31": [
+        { timestamp: "Aug 01 17:57:27", ip: "10.86.40.80:59150" },
+        { timestamp: "Aug 01 15:57:08", ip: "10.86.40.70:63381" },
+        { timestamp: "Aug 01 13:59:53", ip: "10.86.40.60:61584" },
+        { timestamp: "Aug 01 11:49:31", ip: "10.86.40.60:61584" },
+        { timestamp: "Aug 01 09:48:27", ip: "10.86.40.90:61142" },
+        { timestamp: "Aug 01 07:47:13", ip: "10.86.40.90:61142" },
+        { timestamp: "Jul 31 07:00:41", ip: "10.141.1.254:62940" },
+      ],
+      "10.141.1.32": [
+        { timestamp: "Aug 01 17:52:31", ip: "10.86.40.70:63381" },
+        { timestamp: "Aug 01 15:55:08", ip: "10.86.40.90:54178" },
+        { timestamp: "Aug 01 13:50:43", ip: "10.86.40.60:53632" },
+        { timestamp: "Aug 01 11:49:31", ip: "10.86.40.60:61584" },
+        { timestamp: "Aug 01 09:48:27", ip: "10.86.40.90:56812" },
+        { timestamp: "Aug 01 07:47:13", ip: "10.86.40.90:61142" },
+      ],
+      "10.141.1.33": [
+        { timestamp: "Aug 01 17:57:27", ip: "10.86.40.90:59385" },
+        { timestamp: "Aug 01 15:57:08", ip: "10.86.40.80:59150" },
+        { timestamp: "Aug 01 13:59:53", ip: "10.86.40.80:50638" },
+        { timestamp: "Aug 01 11:49:31", ip: "10.86.40.60:61584" },
+        { timestamp: "Aug 01 09:59:46", ip: "10.86.40.90:53922" },
+        { timestamp: "Aug 01 07:56:01", ip: "10.86.40.80:50638" },
+        { timestamp: "Aug 01 05:54:51", ip: "10.86.40.60:50519" },
+        { timestamp: "Aug 01 03:53:30", ip: "10.86.40.60:55465" },
+        { timestamp: "Aug 01 01:55:17", ip: "10.86.40.70:50039" },
+        { timestamp: "Jul 31 23:52:45", ip: "10.86.40.70:55951" },
+      ],
+    };
+
+    // Return device-specific data or empty array if device not found
+    return deviceSSHData[deviceIP] || [];
+  };
+
+  const sshConnections = getDeviceSSHConnections(device.ip);
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-md mx-4 border border-slate-600">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-white">Recent SSH Connections</h3>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClose}
+            className="text-slate-400 hover:text-white"
+          >
+            ✕
+          </Button>
+        </div>
+        
+        <div className="mb-4">
+          <p className="text-slate-300 text-sm">Device: <span className="text-blue-400 font-medium">{device.ip}</span></p>
+        </div>
+
+        <div className="space-y-2 max-h-64 overflow-y-auto">
+          {sshConnections.length > 0 ? (
+            sshConnections.map((connection, index) => (
+              <div key={index} className="flex justify-between items-center p-2 bg-slate-700/50 rounded-lg">
+                <span className="text-slate-300 text-sm">{connection.timestamp}</span>
+                <span className="text-blue-400 text-sm font-mono">{connection.ip}</span>
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-8 text-slate-400">
+              <Terminal className="w-8 h-8 mx-auto mb-2 opacity-50" />
+              <p>No SSH connections found</p>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-6 flex justify-end">
+          <Button
+            onClick={onClose}
+            className="bg-blue-500 hover:bg-blue-600 text-white"
+          >
+            Close
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // Creative Device Component - Box design with colored headers
-function CreativeDeviceBox({ device, onUseDevice, onSetDND, onRequestAccess, onRemoveDevice, onRefreshDevice }: {
+function CreativeDeviceBox({ device, currentUser, onSetDND, onRequestAccess, onRemoveDevice, onRefreshDevice, onViewSSH, onShowDeviceInfo }: {
   device: Device;
-  onUseDevice: (deviceId: string) => void;
+  currentUser: string | null;
   onSetDND: (deviceId: string) => void;
   onRequestAccess: (deviceId: string) => void;
   onRemoveDevice: (deviceId: string) => void;
   onRefreshDevice: (deviceId: string) => void;
+  onViewSSH: (deviceId: string) => void;
+  onShowDeviceInfo: (device: Device) => void;
 }) {
   const getStatusConfig = (status: string) => {
     switch (status) {
@@ -69,39 +178,42 @@ function CreativeDeviceBox({ device, onUseDevice, onSetDND, onRequestAccess, onR
     <div className="relative group hover:scale-105 transition-all duration-300">
       {/* Box Container */}
       <div 
-        className={`relative w-72 bg-slate-800/50 backdrop-blur-sm border ${config.border} rounded-2xl overflow-hidden hover:shadow-2xl hover:shadow-${config.pulse}/20 transition-all duration-300`}
+        className={`relative w-full max-w-sm bg-slate-800/30 backdrop-blur-sm border ${config.border} rounded-2xl overflow-hidden hover:scale-105 hover:shadow-xl hover:shadow-${config.pulse}/10 transition-all duration-300`}
         data-testid={`device-box-${device.id}`}
       >
         {/* Colored Header with IP Address */}
         <div className={`bg-gradient-to-r ${config.headerColor} px-6 py-4 relative`}>
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <h3 className={`text-lg font-bold ${config.headerText}`} data-testid={`device-ip-${device.id}`}>
+            <div className="flex items-center space-x-3">
+              <h3 className={`text-xl font-bold ${config.headerText}`} data-testid={`device-ip-${device.id}`}>
                 {device.ip}
               </h3>
               <Button
                 size="sm"
                 variant="ghost"
-                className="w-6 h-6 bg-white/20 hover:bg-white/30 text-white border-0 rounded-full p-0"
+                className="w-7 h-7 bg-white/20 hover:bg-white/30 text-white border-0 rounded-full p-0 transition-all duration-200"
                 onClick={() => window.open(`http://${device.ip}`, '_blank')}
                 data-testid={`button-open-ip-${device.id}`}
                 title={`Open ${device.ip} in new tab`}
               >
-                <ExternalLink className="w-3 h-3" />
+                <ExternalLink className="w-4 h-4" />
               </Button>
             </div>
-            <div className="flex items-center space-x-2">
-              <div className={`w-3 h-3 rounded-full ${config.pulse} animate-pulse shadow-lg`}></div>
-              {isOnline ? (
-                <Wifi className="w-4 h-4 text-white/90" />
-              ) : (
-                <WifiOff className="w-4 h-4 text-white/90" />
-              )}
-            </div>
+
           </div>
           
           {/* Action buttons in header */}
           <div className="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="w-7 h-7 bg-white/20 hover:bg-white/30 text-white border-0 rounded-full p-0"
+              onClick={() => onShowDeviceInfo(device)}
+              data-testid={`button-device-info-${device.id}`}
+              title="Device Information"
+            >
+              <Info className="w-4 h-4" />
+            </Button>
             <Button
               size="sm"
               variant="ghost"
@@ -136,21 +248,21 @@ function CreativeDeviceBox({ device, onUseDevice, onSetDND, onRequestAccess, onR
         </div>
 
         {/* Body Content */}
-        <div className={`bg-gradient-to-br ${config.bodyColor} px-6 py-5`}>
+        <div className={`bg-gradient-to-br ${config.bodyColor} px-6 py-4`}>
           {/* Status */}
-          <div className="mb-4 flex items-center justify-between">
-            <div className={`text-sm font-medium ${config.textColor}`} data-testid={`device-status-${device.id}`}>
+          <div className="mb-6 flex items-center justify-between">
+            <div className={`text-base font-semibold ${config.textColor}`} data-testid={`device-status-${device.id}`}>
               {device.status === "using" && "In Use"}
-              {device.status === "idle" && "Available"}
+              {device.status === "idle" && (device.usageDuration ? `Will use for next ${device.usageDuration}` : "Available")}
               {device.status === "dnd" && "Do Not Disturb"}
             </div>
-            <div className={`text-xs px-2 py-1 rounded-full ${config.bodyColor} border ${config.border}`}>
+            <div className={`text-sm px-3 py-1.5 rounded-full ${config.bodyColor} border ${config.border} font-medium`}>
               {isOnline ? "Online" : "Offline"}
             </div>
           </div>
 
           {/* Device Info */}
-          <div className="text-sm text-slate-300 space-y-2 mb-5">
+          <div className="text-sm text-slate-300 space-y-2 mb-4">
             <div className="flex justify-between">
               <span className="text-slate-400">Version:</span>
               <span>{device.version ?? '-'}</span>
@@ -159,7 +271,7 @@ function CreativeDeviceBox({ device, onUseDevice, onSetDND, onRequestAccess, onR
               <span className="text-slate-400">Uptime:</span>
               <span>{device.uptime ?? '-'}</span>
             </div>
-            
+
             {/* Description Field */}
             {device.description && (
               <div className="flex justify-between items-start">
@@ -169,59 +281,35 @@ function CreativeDeviceBox({ device, onUseDevice, onSetDND, onRequestAccess, onR
                 </span>
               </div>
             )}
-            
 
-            
-            {device.currentUser && (
-              <div className="flex justify-between">
-                <span className="text-slate-400">User:</span>
-                <span className={`${config.textColor} font-medium`}>{device.currentUser}</span>
-              </div>
-            )}
+
           </div>
 
           {/* Action Buttons */}
-          <div className="flex space-x-2">
-            {device.status === "idle" && (
-              <>
-                <Button
-                  size="sm"
-                  className="flex-1 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/50 py-2 text-xs transition-colors"
-                  onClick={() => onUseDevice(device.id)}
-                  data-testid={`button-use-${device.id}`}
-                >
-                  <Play className="w-3 h-3 mr-1" />
-                  Use Now
-                </Button>
-                <Button
-                  size="sm"
-                  className="flex-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/50 py-2 text-xs transition-colors"
-                  onClick={() => onSetDND(device.id)}
-                  data-testid={`button-dnd-${device.id}`}
-                >
-                  <Pause className="w-3 h-3 mr-1" />
-                  DND
-                </Button>
-              </>
-            )}
-            {device.status === "using" && (
-              <Button
-                size="sm"
-                className="flex-1 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 border border-orange-500/50 py-2 text-xs transition-colors"
-                onClick={() => onRequestAccess(device.id)}
-                data-testid={`button-request-access-${device.id}`}
-              >
-                <Send className="w-3 h-3 mr-1" />
-                Request Access
-              </Button>
-            )}
+          <div className="flex space-x-2 mb-3">
             {device.status === "dnd" && (
-              <div className="flex-1 bg-slate-600/30 text-slate-500 border border-slate-600/50 py-2 text-xs rounded-lg flex items-center justify-center">
-                <AlertCircle className="w-3 h-3 mr-1" />
+              <div className="flex-1 bg-slate-600/30 text-slate-400 border border-slate-600/50 py-3 text-sm rounded-xl flex items-center justify-center font-medium">
+                <AlertCircle className="w-4 h-4 mr-2" />
                 Long Test Running
               </div>
             )}
           </div>
+
+          {/* SSH Connections Button */}
+          <div className="mt-3">
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full bg-slate-700/30 hover:bg-slate-700/50 text-slate-300 border border-slate-600/50 py-2 text-xs transition-colors"
+              onClick={() => onViewSSH(device.id)}
+              data-testid={`button-view-ssh-${device.id}`}
+            >
+              <Terminal className="w-3 h-3 mr-1" />
+              View Recent SSH
+            </Button>
+          </div>
+
+
         </div>
       </div>
     </div>
@@ -231,7 +319,21 @@ function CreativeDeviceBox({ device, onUseDevice, onSetDND, onRequestAccess, onR
 export default function Devices() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
+  const [isSSHModalOpen, setIsSSHModalOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isDeviceInfoModalOpen, setIsDeviceInfoModalOpen] = useState(false);
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
+  const [currentUser, setCurrentUser] = useState<string | null>(null);
+
+  // Auto-open auth modal if coming from header
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('auth') === 'open') {
+      setIsAuthModalOpen(true);
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
   const [confirmationModal, setConfirmationModal] = useState<{
     isOpen: boolean;
     title: string;
@@ -370,20 +472,17 @@ export default function Devices() {
   };
 
   // Event handlers
-  const handleAddDevice = async (ip: string) => {
-    await addDeviceMutation.mutateAsync({ ip });
+  const handleAddDevice = async (deviceData: {
+    ip: string;
+    addedBy: string;
+    criticality: string;
+    note: string;
+    usageDuration: string;
+  }) => {
+    await addDeviceMutation.mutateAsync(deviceData);
   };
 
-  const handleUseDevice = (deviceId: string) => {
-    const username = prompt("Enter your username:");
-    if (username) {
-      updateDeviceStatusMutation.mutate({
-        id: deviceId,
-        status: "using",
-        currentUser: username.trim(),
-      });
-    }
-  };
+
   const handleRefreshDevice = async (deviceId: string) => {
     try {
       await deviceApi.refresh(deviceId);
@@ -392,6 +491,64 @@ export default function Devices() {
     } catch (e: any) {
       toast({ title: "Refresh failed", description: e?.message || "Unable to refresh device", variant: "destructive" });
     }
+  };
+
+  const handleViewSSH = (deviceId: string) => {
+    const device = devices.find(d => d.id === deviceId);
+    if (device) {
+      setSelectedDevice(device);
+      setIsSSHModalOpen(true);
+    }
+  };
+
+  const handleShowDeviceInfo = (device: Device) => {
+    setSelectedDevice(device);
+    setIsDeviceInfoModalOpen(true);
+  };
+
+  const handleLogin = async (username: string, password: string) => {
+    try {
+      const response = await AuthService.login({ username, password });
+      setCurrentUser(response.user.username);
+      toast({
+        title: "Success",
+        description: `Welcome back, ${response.user.username}!`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Login Failed",
+        description: error.message || "Authentication failed",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
+  const handleSignup = async (username: string, password: string) => {
+    try {
+      const response = await AuthService.signup({ username, password });
+      setCurrentUser(response.user.username);
+      toast({
+        title: "Success",
+        description: `Account created for ${response.user.username}!`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Signup Failed",
+        description: error.message || "Account creation failed",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
+  const handleLogout = () => {
+    AuthService.logout();
+    setCurrentUser(null);
+    toast({
+      title: "Logged out",
+      description: "You have been logged out successfully.",
+    });
   };
 
 
@@ -458,26 +615,21 @@ export default function Devices() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900/20 to-slate-900 text-slate-50 font-inter antialiased">
-      <Header deviceStats={deviceStats} />
+      <Header deviceStats={deviceStats} currentUser={currentUser} onLogout={handleLogout} />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header Section */}
         <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent mb-2">
-              Device Management
-            </h1>
-            <p className="text-slate-400">Manage your network devices with creative controls</p>
-          </div>
-          
-          <Button
-            onClick={() => setIsAddModalOpen(true)}
-            className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white flex items-center space-x-2 px-6 py-3 rounded-xl shadow-lg"
-            data-testid="button-add-device"
-          >
-            <Plus className="w-5 h-5" />
-            <span>Add New Device</span>
-          </Button>
+          {currentUser && (
+            <Button
+              onClick={() => setIsAddModalOpen(true)}
+              className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white flex items-center space-x-2 px-6 py-3 rounded-xl shadow-lg"
+              data-testid="button-add-device"
+            >
+              <Plus className="w-5 h-5" />
+              <span>Add New Device</span>
+            </Button>
+          )}
         </div>
 
         {/* Device Grid */}
@@ -488,29 +640,42 @@ export default function Devices() {
           </div>
         ) : devices.length === 0 ? (
           <div className="text-center py-20" data-testid="no-devices">
-            <div className="w-16 h-16 bg-slate-800 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Plus className="w-8 h-8 text-slate-400" />
+            <div className="w-20 h-20 bg-slate-800/50 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-slate-700">
+              <Plus className="w-10 h-10 text-slate-400" />
             </div>
-            <h3 className="text-xl font-semibold text-slate-400 mb-2">No devices found</h3>
-            <p className="text-slate-500 mb-6">Add your first device to start monitoring</p>
-            <Button
-              onClick={() => setIsAddModalOpen(true)}
-              className="bg-blue-500 hover:bg-blue-600 text-white"
-            >
-              Add First Device
-            </Button>
+            <h3 className="text-2xl font-bold text-slate-300 mb-3">No devices yet</h3>
+            <p className="text-slate-500 mb-8 text-lg">Start by adding your first network device</p>
+            {currentUser ? (
+              <Button
+                onClick={() => setIsAddModalOpen(true)}
+                className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white px-8 py-3 text-lg rounded-xl shadow-lg"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                Add First Device
+              </Button>
+            ) : (
+              <Button
+                onClick={() => setIsAuthModalOpen(true)}
+                className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-8 py-3 text-lg rounded-xl shadow-lg"
+              >
+                <User className="w-5 h-5 mr-2" />
+                Sign In to Add Device
+              </Button>
+            )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6" data-testid="device-grid">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" data-testid="device-grid">
             {devices.map((device) => (
               <CreativeDeviceBox
                 key={device.id}
                 device={device}
-                onUseDevice={handleUseDevice}
+                currentUser={currentUser}
                 onSetDND={handleSetDND}
                 onRequestAccess={handleRequestAccess}
                 onRemoveDevice={handleRemoveDevice}
                 onRefreshDevice={handleRefreshDevice}
+                onViewSSH={handleViewSSH}
+                onShowDeviceInfo={handleShowDeviceInfo}
               />
             ))}
           </div>
@@ -522,6 +687,14 @@ export default function Devices() {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onAdd={handleAddDevice}
+        currentUser={currentUser || ""}
+      />
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onLogin={handleLogin}
+        onSignup={handleSignup}
       />
 
       <RequestAccessModal
@@ -532,6 +705,24 @@ export default function Devices() {
           setSelectedDevice(null);
         }}
         onSubmit={handleSubmitAccessRequest}
+      />
+
+      <SSHConnectionsModal
+        isOpen={isSSHModalOpen}
+        device={selectedDevice}
+        onClose={() => {
+          setIsSSHModalOpen(false);
+          setSelectedDevice(null);
+        }}
+      />
+
+      <DeviceInfoModal
+        isOpen={isDeviceInfoModalOpen}
+        device={selectedDevice}
+        onClose={() => {
+          setIsDeviceInfoModalOpen(false);
+          setSelectedDevice(null);
+        }}
       />
 
       <ConfirmationModal

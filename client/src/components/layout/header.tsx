@@ -7,9 +7,11 @@ interface HeaderProps {
     online: number;
     inUse: number;
   };
+  currentUser?: string | null;
+  onLogout?: () => void;
 }
 
-export function Header({ deviceStats }: HeaderProps) {
+export function Header({ deviceStats, currentUser, onLogout }: HeaderProps) {
   const [location] = useLocation();
 
   return (
@@ -21,7 +23,7 @@ export function Header({ deviceStats }: HeaderProps) {
             <div className="bg-blue-500 rounded-lg p-2">
               <Server className="text-white w-5 h-5" />
             </div>
-            <h1 className="text-xl font-semibold text-slate-50">Device Monitor</h1>
+            <h1 className="text-xl font-semibold text-slate-50">WatchBox</h1>
           </div>
           
           {/* Compact Statistics */}
@@ -70,10 +72,26 @@ export function Header({ deviceStats }: HeaderProps) {
                 <span>Devices</span>
               </button>
             </Link>
-            <button className="text-slate-400 hover:text-slate-50 px-3 py-2 text-sm font-medium transition-colors flex items-center space-x-2" data-testid="nav-settings">
-              <Settings className="w-4 h-4" />
-              <span>Settings</span>
-            </button>
+            
+            {/* User Info */}
+            {currentUser ? (
+              <div className="flex items-center space-x-3">
+                <span className="text-sm text-slate-300">Signed in as: <span className="text-blue-400 font-medium">{currentUser}</span></span>
+                <button
+                  onClick={onLogout}
+                  className="px-3 py-1.5 text-sm font-medium text-slate-400 hover:text-red-400 transition-colors border border-slate-600 hover:border-red-500 rounded-lg"
+                >
+                  Logout
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => window.location.href = '/devices?auth=open'}
+                className="px-4 py-2 text-sm font-medium bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors"
+              >
+                Sign In / Sign Up
+              </button>
+            )}
           </nav>
         </div>
       </div>
