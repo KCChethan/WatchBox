@@ -101,13 +101,15 @@ export function AddDeviceModal({ isOpen, onClose, onAdd, currentUser }: AddDevic
               Criticality Level
             </Label>
             <Select value={criticality} onValueChange={setCriticality}>
-              <SelectTrigger className="w-full bg-slate-700 border-slate-600 text-slate-50 focus:border-blue-400">
+              <SelectTrigger className="w-full bg-slate-700 border-slate-600 text-slate-50">
                 <SelectValue placeholder="Select criticality level" />
               </SelectTrigger>
-              <SelectContent className="bg-slate-700 border-slate-600 text-slate-50">
+              <SelectContent className="bg-slate-700 border-slate-600">
                 <SelectItem value="testing">Testing</SelectItem>
-                <SelectItem value="long run">Long Run</SelectItem>
+                <SelectItem value="long-run">Long Run</SelectItem>
                 <SelectItem value="dnd">Do Not Disturb</SelectItem>
+                <SelectItem value="production">Production</SelectItem>
+                <SelectItem value="critical">Critical</SelectItem>
               </SelectContent>
             </Select>
           </div>

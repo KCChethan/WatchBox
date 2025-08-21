@@ -9,7 +9,13 @@ export const deviceApi = {
 
   create: async (device: InsertDevice): Promise<Device> => {
     const response = await apiRequest("POST", "/api/devices", device);
-    return response.json();
+    const result = await response.json();
+    
+    if ('error' in result) {
+      throw new Error(result.error);
+    }
+    
+    return result;
   },
 
   updateStatus: async (id: string, status: UpdateDeviceStatus): Promise<Device> => {
@@ -17,8 +23,22 @@ export const deviceApi = {
     return response.json();
   },
 
-  delete: async (id: string): Promise<void> => {
-    await apiRequest("DELETE", `/api/devices/${id}`);
+  delete: async (id: string, deletedBy?: string): Promise<void> => {
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`/api/devices/${id}`, {
+      method: 'DELETE',
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ deletedBy }),
+      credentials: "include"
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || 'Failed to delete device');
+    }
   },
 
   refresh: async (id: string): Promise<Device> => {

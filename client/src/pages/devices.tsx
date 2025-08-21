@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Send, Play, Pause, AlertCircle, Wifi, WifiOff, RefreshCcw, ExternalLink, Terminal, User, Info } from "lucide-react";
+import { Plus, Trash2, Send, AlertCircle, RefreshCcw, ExternalLink, User, Info, Clock, Tag } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { AddDeviceModal } from "@/components/add-device-modal";
 import { ConfirmationModal } from "@/components/confirmation-modal";
@@ -120,14 +120,13 @@ function SSHConnectionsModal({ isOpen, onClose, device }: {
 }
 
 // Creative Device Component - Box design with colored headers
-function CreativeDeviceBox({ device, currentUser, onSetDND, onRequestAccess, onRemoveDevice, onRefreshDevice, onViewSSH, onShowDeviceInfo }: {
+function CreativeDeviceBox({ device, currentUser, onSetDND, onRequestAccess, onRemoveDevice, onRefreshDevice, onShowDeviceInfo }: {
   device: Device;
   currentUser: string | null;
   onSetDND: (deviceId: string) => void;
   onRequestAccess: (deviceId: string) => void;
   onRemoveDevice: (deviceId: string) => void;
   onRefreshDevice: (deviceId: string) => void;
-  onViewSSH: (deviceId: string) => void;
   onShowDeviceInfo: (device: Device) => void;
 }) {
   const getStatusConfig = (status: string) => {
@@ -270,22 +269,22 @@ function CreativeDeviceBox({ device, currentUser, onSetDND, onRequestAccess, onR
             </div>
           </div>
 
-          {/* Device Info */}
-          <div className="text-sm text-slate-300 space-y-2 mb-4">
-            <div className="flex justify-between">
-              <span className="text-slate-400">Version:</span>
-              <span>{device.version ?? '-'}</span>
+          {/* Device Info - compact, with icons */}
+          <div className="text-sm text-slate-300 space-y-2 mb-3">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-2 text-slate-400"><Tag className="w-3.5 h-3.5" /> Version</span>
+              <span className="font-mono text-slate-200">{device.version ?? '-'}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-slate-400">Uptime:</span>
-              <span>{device.uptime ?? '-'}</span>
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-2 text-slate-400"><Clock className="w-3.5 h-3.5" /> Uptime</span>
+              <span className="text-slate-200">{device.uptime ?? '-'}</span>
             </div>
 
             {/* Description Field */}
             {device.description && (
-              <div className="flex justify-between items-start">
-                <span className="text-slate-400">Image Info:</span>
-                <span className="max-w-[180px] two-line-ellipsis text-xs text-right" title={device.description}>
+              <div className="flex items-start justify-between">
+                <span className="flex items-center gap-2 text-slate-400"><Info className="w-3.5 h-3.5" /> Image</span>
+                <span className="max-w-[200px] two-line-ellipsis text-[11px] text-right" title={device.description}>
                   {device.description}
                 </span>
               </div>
@@ -304,21 +303,7 @@ function CreativeDeviceBox({ device, currentUser, onSetDND, onRequestAccess, onR
             )}
           </div>
 
-          {/* SSH Connections Button */}
-          {isOnline && (
-            <div className="mt-3">
-              <Button
-                size="sm"
-                variant="outline"
-                className="w-full bg-slate-700/30 hover:bg-slate-700/50 text-slate-300 border border-slate-600/50 py-2 text-xs transition-colors"
-                onClick={() => onViewSSH(device.id)}
-                data-testid={`button-view-ssh-${device.id}`}
-              >
-                <Terminal className="w-3 h-3 mr-1" />
-                View Recent SSH
-              </Button>
-            </div>
-          )}
+          {/* SSH button removed per request */}
 
 
         </div>
@@ -330,7 +315,7 @@ function CreativeDeviceBox({ device, currentUser, onSetDND, onRequestAccess, onR
 export default function Devices() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
-  const [isSSHModalOpen, setIsSSHModalOpen] = useState(false);
+  // Removed SSH modal state per request
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isDeviceInfoModalOpen, setIsDeviceInfoModalOpen] = useState(false);
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
@@ -422,16 +407,25 @@ export default function Devices() {
       });
     },
     onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to add device",
-        variant: "destructive",
-      });
+      // Check if it's a 409 conflict (duplicate device) - show as warning
+      if (error.message && (error.message.includes('already in use') || error.message.includes('already exists'))) {
+        toast({
+          title: "Device Already Exists",
+          description: error.message,
+          variant: "default", // Use default variant for warnings
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to add device",
+          variant: "destructive",
+        });
+      }
     },
   });
 
   const removeDeviceMutation = useMutation({
-    mutationFn: deviceApi.delete,
+    mutationFn: ({ id, deletedBy }: { id: string; deletedBy?: string }) => deviceApi.delete(id, deletedBy),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/devices"] });
       toast({
@@ -519,13 +513,7 @@ export default function Devices() {
     }
   };
 
-  const handleViewSSH = (deviceId: string) => {
-    const device = devices.find(d => d.id === deviceId);
-    if (device) {
-      setSelectedDevice(device);
-      setIsSSHModalOpen(true);
-    }
-  };
+  // Removed SSH modal opener
 
   const handleShowDeviceInfo = (device: Device) => {
     setSelectedDevice(device);
@@ -606,6 +594,15 @@ export default function Devices() {
   };
 
   const handleRemoveDevice = (deviceId: string) => {
+    if (!currentUser) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to delete devices",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const device = devices.find(d => d.id === deviceId);
     if (device) {
       setConfirmationModal({
@@ -618,8 +615,11 @@ export default function Devices() {
   };
 
   const handleConfirmRemoval = () => {
-    if (confirmationModal.deviceId) {
-      removeDeviceMutation.mutate(confirmationModal.deviceId);
+    if (confirmationModal.deviceId && currentUser) {
+      removeDeviceMutation.mutate({ 
+        id: confirmationModal.deviceId, 
+        deletedBy: currentUser 
+      });
     }
     setConfirmationModal(prev => ({ ...prev, isOpen: false, deviceId: null }));
   };
@@ -646,7 +646,7 @@ export default function Devices() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header Section */}
         <div className="flex items-center justify-between mb-8">
-          {currentUser && (
+          {currentUser && devices.length > 0 && (
             <Button
               onClick={() => setIsAddModalOpen(true)}
               className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white flex items-center space-x-2 px-6 py-3 rounded-xl shadow-lg"
@@ -700,7 +700,6 @@ export default function Devices() {
                 onRequestAccess={handleRequestAccess}
                 onRemoveDevice={handleRemoveDevice}
                 onRefreshDevice={handleRefreshDevice}
-                onViewSSH={handleViewSSH}
                 onShowDeviceInfo={handleShowDeviceInfo}
               />
             ))}
@@ -733,14 +732,7 @@ export default function Devices() {
         onSubmit={handleSubmitAccessRequest}
       />
 
-      <SSHConnectionsModal
-        isOpen={isSSHModalOpen}
-        device={selectedDevice}
-        onClose={() => {
-          setIsSSHModalOpen(false);
-          setSelectedDevice(null);
-        }}
-      />
+      {/* SSH modal removed */}
 
       <DeviceInfoModal
         isOpen={isDeviceInfoModalOpen}

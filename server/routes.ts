@@ -20,25 +20,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Logs endpoint - recent 50
+  app.get("/api/logs", async (_req, res) => {
+    const logs = await storage.getRecentLogs(50);
+    res.json(logs);
+  });
+
   app.post("/api/devices", async (req, res) => {
     try {
-      const deviceData = insertDeviceSchema.parse(req.body);
+      const validatedData = insertDeviceSchema.parse(req.body);
+      const result = await storage.createDevice(validatedData);
       
-      // Check if device already exists
-      const existingDevice = await storage.getDeviceByIp(deviceData.ip);
-      if (existingDevice) {
-        return res.status(409).json({ message: "Device with this IP already exists" });
+      if ('error' in result) {
+        // For duplicate device errors, return 409 Conflict
+        if (result.error.includes('already in use') || result.error.includes('already exists')) {
+          return res.status(409).json({ error: result.error });
+        }
+        return res.status(400).json({ error: result.error });
       }
-
-      const device = await storage.createDevice(deviceData);
       
       // Fetch device info via SSH with safe fallback to mock
-      let sshResult = await SSHService.fetchDeviceInfo(deviceData.ip);
+      let sshResult = await SSHService.fetchDeviceInfo(validatedData.ip);
       if (!sshResult.success && USE_MOCK_FALLBACK) {
-        sshResult = await MockSSHService.fetchDeviceInfo(deviceData.ip);
+        sshResult = await MockSSHService.fetchDeviceInfo(validatedData.ip);
       }
       if (sshResult.success) {
-        await storage.updateDevice(device.id, {
+        await storage.updateDevice(result.id, {
           version: sshResult.data.version ?? null,
           kernel: sshResult.data.kernel,
           build: sshResult.data.build,
@@ -48,20 +55,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           uptime: sshResult.data.uptime ?? null,
           isOnline: sshResult.data.isOnline,
           // initialize usage timer only if duration provided by user
-          usageStartTime: deviceData.usageDuration ? new Date() : null,
+          usageStartTime: validatedData.usageDuration ? new Date() : null,
         });
       } else {
-        await storage.updateDevice(device.id, { isOnline: 0, version: null, uptime: null });
+        await storage.updateDevice(result.id, { isOnline: 0, version: null, uptime: null });
       }
 
-      const updatedDevice = await storage.getDevice(device.id);
+      const updatedDevice = await storage.getDevice(result.id);
       
       // Broadcast to WebSocket clients
       broadcastToClients('device_added', updatedDevice);
       
       res.json(updatedDevice);
-    } catch (error: any) {
-      res.status(400).json({ message: error.message || "Failed to create device" });
+    } catch (error) {
+      console.error("Error creating device:", error);
+      res.status(400).json({ error: "Invalid device data" });
     }
   });
 
@@ -92,18 +100,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/devices/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      const deleted = await storage.deleteDevice(id);
+      const { deletedBy } = req.body; // Get the username from request body
       
-      if (!deleted) {
-        return res.status(404).json({ message: "Device not found" });
+      // Check if user is authenticated (you can implement proper auth middleware later)
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: "Authentication required" });
       }
-
+      
+      const deleted = await storage.deleteDevice(id, deletedBy);
+      if (!deleted) {
+        return res.status(404).json({ error: "Device not found" });
+      }
+      
       // Broadcast to WebSocket clients
       broadcastToClients('device_deleted', { id });
       
       res.json({ message: "Device deleted successfully" });
     } catch (error) {
-      res.status(500).json({ message: "Failed to delete device" });
+      console.error("Error deleting device:", error);
+      res.status(500).json({ error: "Failed to delete device" });
     }
   });
 
@@ -197,7 +213,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         res.json(updatedDevice);
       } else {
-        const updatedDevice = await storage.updateDevice(id, { isOnline: 0, version: null, uptime: null });
+        const updatedDevice = await storage.updateDevice(id, { isOnline: 0 });
         broadcastToClients('device_updated', updatedDevice);
         res.status(500).json({ message: sshResult.error || "Failed to fetch device info" });
       }
@@ -281,10 +297,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const clients = new Set<WebSocket>();
 
   wss.on('connection', (ws) => {
+    console.log('New WebSocket client connected. Total clients:', clients.size + 1);
     clients.add(ws);
     
     ws.on('close', () => {
       clients.delete(ws);
+      console.log('WebSocket client disconnected. Total clients:', clients.size);
     });
 
     // Send initial data
@@ -293,6 +311,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   function broadcastToClients(type: string, data: any) {
     const message = JSON.stringify({ type, data });
+    console.log(`Broadcasting WebSocket message: ${type}`, { data });
     clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(message);
@@ -321,7 +340,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             isOnline: sshResult.data.isOnline
           });
         } else {
-          await storage.updateDevice(device.id, { isOnline: 0, version: null, uptime: null });
+          await storage.updateDevice(device.id, { isOnline: 0 });
         }
       }
       

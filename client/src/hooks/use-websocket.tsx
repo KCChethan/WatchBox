@@ -23,18 +23,22 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
     try {
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       const wsUrl = `${protocol}//${window.location.host}/ws`;
+      console.log('Attempting to connect to WebSocket URL:', wsUrl);
       
       ws.current = new WebSocket(wsUrl);
 
       ws.current.onopen = () => {
-        console.log('WebSocket connected');
+        console.log('WebSocket connected to:', wsUrl);
+        console.log('WebSocket readyState:', ws.current?.readyState);
         reconnectAttempts.current = 0;
         options.onConnect?.();
       };
 
       ws.current.onmessage = (event) => {
         try {
+          console.log('WebSocket raw message received:', event.data);
           const message: WebSocketMessage = JSON.parse(event.data);
+          console.log('WebSocket parsed message:', message);
           options.onMessage?.(message);
         } catch (error) {
           console.error('Error parsing WebSocket message:', error);

@@ -140,11 +140,7 @@ export default function Dashboard() {
                   <TrendingUp className="w-5 h-5 text-blue-400" />
                   <span>System Overview</span>
                 </h3>
-                <Link href="/devices">
-                  <button className="text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors" data-testid="view-all-devices">
-                    View All Devices →
-                  </button>
-                </Link>
+                {/* Simplified with no arrow link per request */}
               </div>
               
               {/* Status Visualization */}

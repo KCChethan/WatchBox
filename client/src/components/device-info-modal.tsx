@@ -68,24 +68,24 @@ export function DeviceInfoModal({ isOpen, onClose, device }: DeviceInfoModalProp
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-slate-800 border-slate-700 p-6 w-full max-w-md">
+      <DialogContent className="bg-slate-800/95 border-slate-700 p-5 w-full max-w-md sm:max-w-lg">
         <DialogHeader>
           <div className="flex items-center justify-between">
-            <DialogTitle className="text-lg font-semibold text-slate-50">
+            <DialogTitle className="text-base sm:text-lg font-semibold text-slate-50">
               Device Information
             </DialogTitle>
             <Button
               variant="ghost"
               size="sm"
               onClick={onClose}
-              className="text-slate-400 hover:text-slate-300 p-0 h-6 w-6"
+              className="text-slate-400 hover:text-slate-300 p-0 h-7 w-7"
             >
               <X className="w-4 h-4" />
             </Button>
           </div>
         </DialogHeader>
         
-        <div className="space-y-4">
+        <div className="space-y-3">
           {/* Device IP */}
           <div className="bg-slate-700/50 rounded-lg p-4">
             <h3 className="text-lg font-bold text-blue-400 mb-2">{device.ip}</h3>
@@ -100,21 +100,21 @@ export function DeviceInfoModal({ isOpen, onClose, device }: DeviceInfoModalProp
           </div>
 
           {/* Owner Information */}
-          <div className="bg-slate-700/50 rounded-lg p-4">
-            <div className="flex items-center space-x-2 mb-3">
+          <div className="bg-slate-700/50 rounded-lg p-4 grid grid-cols-2 gap-3">
+            <div className="flex items-center space-x-2">
               <User className="w-5 h-5 text-blue-400" />
-              <h4 className="text-md font-semibold text-slate-200">Device Owner</h4>
+              <h4 className="text-sm font-semibold text-slate-200">Added By</h4>
             </div>
-            <p className="text-blue-400 font-medium">{device.addedBy || 'Unknown'}</p>
+            <p className="text-blue-400 font-medium col-span-2">{device.addedBy || 'Unknown'}</p>
           </div>
 
           {/* Criticality Level */}
-          <div className="bg-slate-700/50 rounded-lg p-4">
-            <div className="flex items-center space-x-2 mb-3">
+          <div className="bg-slate-700/50 rounded-lg p-4 grid grid-cols-2 gap-3">
+            <div className="flex items-center space-x-2">
               {getCriticalityIcon(device.criticality)}
-              <h4 className="text-md font-semibold text-slate-200">Criticality Level</h4>
+              <h4 className="text-sm font-semibold text-slate-200">Criticality</h4>
             </div>
-            <p className={`font-medium ${getCriticalityColor(device.criticality)}`}>
+            <p className={`font-medium col-span-2 ${getCriticalityColor(device.criticality)}`}>
               {device.criticality || 'testing'}
             </p>
           </div>
@@ -122,9 +122,9 @@ export function DeviceInfoModal({ isOpen, onClose, device }: DeviceInfoModalProp
           {/* Usage Timer */}
           {device.usageStartTime && device.usageDuration && (
             <div className="bg-slate-700/50 rounded-lg p-4">
-              <div className="flex items-center space-x-2 mb-3">
+              <div className="flex items-center space-x-2 mb-2">
                 <Clock className="w-5 h-5 text-green-400" />
-                <h4 className="text-md font-semibold text-slate-200">Usage Timer</h4>
+                <h4 className="text-sm font-semibold text-slate-200">Usage Timer</h4>
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between">
@@ -133,7 +133,7 @@ export function DeviceInfoModal({ isOpen, onClose, device }: DeviceInfoModalProp
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">Elapsed:</span>
-                  <span className="text-green-400 font-mono text-lg">{elapsedTime}</span>
+                  <span className="text-green-400 font-mono text-base">{elapsedTime}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">Planned Duration:</span>
@@ -141,7 +141,7 @@ export function DeviceInfoModal({ isOpen, onClose, device }: DeviceInfoModalProp
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">Will use for next:</span>
-                  <span className="text-orange-400 font-mono text-lg">
+                  <span className="text-orange-400 font-mono text-base">
                     {(() => {
                       const plannedHours = parseInt(device.usageDuration.split(':')[0]);
                       const plannedMinutes = parseInt(device.usageDuration.split(':')[1]);
@@ -182,7 +182,7 @@ export function DeviceInfoModal({ isOpen, onClose, device }: DeviceInfoModalProp
           <div className="bg-slate-700/50 rounded-lg p-4">
             <div className="flex items-center space-x-2 mb-3">
               <Calendar className="w-5 h-5 text-purple-400" />
-              <h4 className="text-md font-semibold text-slate-200">Current Status</h4>
+              <h4 className="text-sm font-semibold text-slate-200">Current Status</h4>
             </div>
             <div className="space-y-2">
               <div className="flex justify-between">
@@ -211,7 +211,7 @@ export function DeviceInfoModal({ isOpen, onClose, device }: DeviceInfoModalProp
           </div>
         </div>
 
-        <div className="mt-6 flex justify-end">
+        <div className="mt-4 flex justify-end">
           <Button
             onClick={onClose}
             className="bg-blue-500 hover:bg-blue-600 text-white"

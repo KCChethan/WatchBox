@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Server, Activity, List, Settings } from "lucide-react";
+import { Server, Activity, List, Settings, Clock } from "lucide-react";
 
 interface HeaderProps {
   deviceStats: {
@@ -71,6 +71,10 @@ export function Header({ deviceStats, currentUser, onLogout }: HeaderProps) {
                 <List className="w-4 h-4" />
                 <span>Devices</span>
               </button>
+            </Link>
+            <Link href="/history" className="flex items-center space-x-2 px-3 py-2 rounded-lg text-slate-300 hover:text-slate-50 hover:bg-slate-800/50 transition-colors">
+              <Clock className="w-4 h-4" />
+              <span>History</span>
             </Link>
             
             {/* User Info */}
