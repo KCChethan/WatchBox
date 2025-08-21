@@ -268,3 +268,12 @@
 .font-inter {
   font-family: var(--font-inter);
 }
+
+/* Two-line ellipsis utility */
+.two-line-ellipsis {
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+	white-space: normal;
+}

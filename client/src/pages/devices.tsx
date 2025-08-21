@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Send, Play, Pause, AlertCircle, Wifi, WifiOff, RefreshCcw } from "lucide-react";
+import { Plus, Trash2, Send, Play, Pause, AlertCircle, Wifi, WifiOff, RefreshCcw, ExternalLink } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { AddDeviceModal } from "@/components/add-device-modal";
 import { ConfirmationModal } from "@/components/confirmation-modal";
@@ -75,9 +75,21 @@ function CreativeDeviceBox({ device, onUseDevice, onSetDND, onRequestAccess, onR
         {/* Colored Header with IP Address */}
         <div className={`bg-gradient-to-r ${config.headerColor} px-6 py-4 relative`}>
           <div className="flex items-center justify-between">
-            <h3 className={`text-lg font-bold ${config.headerText}`} data-testid={`device-ip-${device.id}`}>
-              {device.ip}
-            </h3>
+            <div className="flex items-center space-x-2">
+              <h3 className={`text-lg font-bold ${config.headerText}`} data-testid={`device-ip-${device.id}`}>
+                {device.ip}
+              </h3>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="w-6 h-6 bg-white/20 hover:bg-white/30 text-white border-0 rounded-full p-0"
+                onClick={() => window.open(`http://${device.ip}`, '_blank')}
+                data-testid={`button-open-ip-${device.id}`}
+                title={`Open ${device.ip} in new tab`}
+              >
+                <ExternalLink className="w-3 h-3" />
+              </Button>
+            </div>
             <div className="flex items-center space-x-2">
               <div className={`w-3 h-3 rounded-full ${config.pulse} animate-pulse shadow-lg`}></div>
               {isOnline ? (
@@ -147,6 +159,19 @@ function CreativeDeviceBox({ device, onUseDevice, onSetDND, onRequestAccess, onR
               <span className="text-slate-400">Uptime:</span>
               <span>{device.uptime ?? '-'}</span>
             </div>
+            
+            {/* Description Field */}
+            {device.description && (
+              <div className="flex justify-between items-start">
+                <span className="text-slate-400">Image Info:</span>
+                <span className="max-w-[180px] two-line-ellipsis text-xs text-right" title={device.description}>
+                  {device.description}
+                </span>
+              </div>
+            )}
+            
+
+            
             {device.currentUser && (
               <div className="flex justify-between">
                 <span className="text-slate-400">User:</span>

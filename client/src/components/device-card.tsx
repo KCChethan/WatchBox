@@ -130,6 +130,35 @@ export function DeviceCard({
             {device.uptime || "Unknown"}
           </span>
         </div>
+        
+        {/* TEST FIELD - Should be impossible to miss */}
+        <div className="flex justify-between bg-red-500 p-2 rounded border-2 border-yellow-400">
+          <span className="text-white font-bold">🔥 TEST FIELD 🔥</span>
+          <span className="text-white font-bold">WORKING!</span>
+        </div>
+        
+        {/* Description Field - Always Visible for Debugging */}
+        <div className="flex justify-between border-t border-slate-700 pt-2">
+          <span className="text-slate-400">Description:</span>
+          <span className="text-slate-300 text-xs max-w-[120px] truncate" data-testid={`device-description-${device.id}`} title={device.description || "No description"}>
+            {device.description || "No description available"}
+          </span>
+        </div>
+        
+        {/* Last Updated Field - Always Visible */}
+        <div className="flex justify-between">
+          <span className="text-slate-400">Updated:</span>
+          <span className="text-slate-300 text-xs" data-testid={`device-lastupdated-${device.id}`}>
+            {device.lastUpdated ? new Date(device.lastUpdated).toLocaleDateString() : "Unknown"}
+          </span>
+        </div>
+        
+        {/* Debug Info */}
+        <div className="flex justify-between text-xs text-slate-500 border-t border-slate-700 pt-2">
+          <span>Debug:</span>
+          <span>ID: {device.id.substring(0, 8)}...</span>
+        </div>
+        
         <div className="flex justify-between">
           <span className="text-slate-400">User:</span>
           <span className={`font-medium ${device.currentUser ? getStatusColor(device.status) : "text-slate-500"}`} data-testid={`device-user-${device.id}`}>
