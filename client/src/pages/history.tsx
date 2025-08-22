@@ -4,6 +4,7 @@ import AuthService from "@/lib/auth";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { deviceApi } from "@/lib/api";
 
 interface LogEntry {
   type: string;
@@ -25,6 +26,12 @@ export default function History() {
     },
   });
 
+  // Fetch devices for accurate stats
+  const { data: devices = [] } = useQuery({
+    queryKey: ["/api/devices"],
+    queryFn: deviceApi.getAll,
+  });
+
   // WebSocket integration for real-time updates
   const { isConnected } = useWebSocket({
     onMessage: (message) => {
@@ -39,8 +46,9 @@ export default function History() {
           message.type === "access_request_updated" ||
           message.type === "devices_updated") {
         console.log("Refreshing logs due to:", message.type);
-        // Refresh logs when any device or access request changes
+        // Refresh logs and devices when any device or access request changes
         refetch();
+        queryClient.invalidateQueries({ queryKey: ["/api/devices"] });
       } else {
         console.log("Message type not handled:", message.type);
       }
@@ -53,7 +61,12 @@ export default function History() {
     }
   });
 
-  const deviceStats = { total: 0, online: 0, inUse: 0 };
+  // Calculate accurate device stats
+  const deviceStats = {
+    total: devices.length,
+    online: devices.filter(d => d.isOnline === 1).length,
+    inUse: devices.filter(d => d.status === "using").length,
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900/20 to-slate-900 text-slate-50 font-inter antialiased">

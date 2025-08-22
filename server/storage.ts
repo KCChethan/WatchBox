@@ -135,7 +135,13 @@ export class MemStorage implements IStorage {
       usageDuration: insertDevice.usageDuration || null,
     };
     this.devices.set(id, device);
-    this.addLog({ type: "device_created", message: `Device ${device.ip} added by ${insertDevice.addedBy}`, timestamp: new Date() });
+    // Format usage duration for display
+    const usageDisplay = insertDevice.usageDuration ? ` [estimated ${insertDevice.usageDuration}]` : '';
+    this.addLog({ 
+      type: "device_created", 
+      message: `Device ${device.ip} added by ${insertDevice.addedBy}${usageDisplay}`, 
+      timestamp: new Date() 
+    });
     return device;
   }
 
@@ -168,7 +174,30 @@ export class MemStorage implements IStorage {
     if (deleted && device) {
       // Use the actual username who is deleting the device, fallback to original creator if not provided
       const deleterName = deletedBy || device.addedBy;
-      this.addLog({ type: "device_deleted", message: `Device ${device.ip} deleted by ${deleterName}`, timestamp: new Date() });
+      
+      // Determine device status at time of deletion
+      let statusDisplay = '';
+      if (device.status === "using") {
+        statusDisplay = ' - [Not Free]';
+      } else if (device.status === "idle") {
+        if (device.usageStartTime && device.usageDuration) {
+          const [h, m] = device.usageDuration.split(":");
+          const plannedMs = (parseInt(h || '0', 10) * 60 + parseInt(m || '0', 10)) * 60 * 1000;
+          const startMs = new Date(device.usageStartTime).getTime();
+          const isFree = Date.now() - startMs >= plannedMs;
+          statusDisplay = isFree ? ' - [Free]' : ' - [Not Free]';
+        } else {
+          statusDisplay = ' - [Free]';
+        }
+      } else {
+        statusDisplay = ' - [Free]';
+      }
+      
+      this.addLog({ 
+        type: "device_deleted", 
+        message: `Device ${device.ip} deleted by ${deleterName}${statusDisplay}`, 
+        timestamp: new Date() 
+      });
     }
     return deleted;
   }

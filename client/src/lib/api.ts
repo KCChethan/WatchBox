@@ -8,8 +8,18 @@ export const deviceApi = {
   },
 
   create: async (device: InsertDevice): Promise<Device> => {
-    const response = await apiRequest("POST", "/api/devices", device);
+    const response = await fetch("/api/devices", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(device),
+      credentials: "include"
+    });
+    
     const result = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(result.error || 'Failed to create device');
+    }
     
     if ('error' in result) {
       throw new Error(result.error);
